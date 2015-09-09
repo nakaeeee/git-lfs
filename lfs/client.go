@@ -362,7 +362,8 @@ func UploadObject(o *objectResource, cb CopyCallback) error {
 // doLegacyApiRequest runs the request to the LFS legacy API.
 func doLegacyApiRequest(req *http.Request) (*http.Response, *objectResource, error) {
 	via := make([]*http.Request, 0, 4)
-	res, err := doApiRequestWithRedirects(req, via, true)
+	useCreds := Config.PrivateAccess()
+	res, err := doApiRequestWithRedirects(req, via, useCreds)
 	if err != nil {
 		return res, nil, err
 	}
@@ -405,9 +406,13 @@ func doApiBatchRequest(req *http.Request) (*http.Response, []*objectResource, er
 // doStorageREquest runs the request to the storage API from a link provided by
 // the "actions" or "_links" properties an LFS API response.
 func doStorageRequest(req *http.Request) (*http.Response, error) {
-	creds, err := getCreds(req)
-	if err != nil {
-		return nil, err
+	var creds Creds
+	var err error
+	if Config.PrivateAccess() {
+		creds, err = getCreds(req)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return doHttpRequest(req, creds)
@@ -419,10 +424,7 @@ func doStorageRequest(req *http.Request) (*http.Response, error) {
 // private access, credentials will be retrieved.
 func doAPIRequest(req *http.Request) (*http.Response, error) {
 	via := make([]*http.Request, 0, 4)
-	useCreds := true
-	if req.Method == "GET" || req.Method == "HEAD" {
-		useCreds = Config.PrivateAccess()
-	}
+	useCreds := Config.PrivateAccess()
 	return doApiRequestWithRedirects(req, via, useCreds)
 }
 
